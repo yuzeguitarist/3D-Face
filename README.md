@@ -15,6 +15,69 @@ This document outlines an implementation plan for a web application that convert
 - **Textures:** Color map, depth map, optional sprite texture for soft bokeh
 - **Interaction:** Mouse/touch rotation with damping (lerp-based)
 
+## Architecture & Modules
+- **React shell:** page layout, upload controls, parameter sliders, loading/error messaging, and a minimal state store (e.g., Zustand) to keep GPU-only data out of React renders.
+- **Asset loader:** validates color/depth dimension match, generates `HTMLImageElement` URLs from uploads, sets correct color space (`SRGBColorSpace` for color, `LinearSRGBColorSpace` for depth), and handles optional depth inversion.
+- **Scene host (R3F):** camera setup, orbit/damped rotation logic, lights if desired, and a `Points` system wrapped in a memoized component so geometry is created once.
+- **Geometry builder:** constructs the 280 × 280 grid, fills `aUv`, `aRandom`, and optional `aSphere` attributes, uploads as `Float32BufferAttribute`, and freezes (`usage: StaticDrawUsage`).
+- **Shader package:** colocated GLSL strings for vertex/fragment shaders plus a hook that wires uniforms (textures, time, animation toggles) and updates them via `useFrame`.
+- **Controls & presets:** depth/density cuts, depth scale, focus/aperture, morph amount, curl strength, sprite on/off, depth inversion toggle, and reset-to-defaults actions.
+
+## Step-by-Step Implementation
+1. **UI & state:** build upload inputs for color/depth, show progress/error toasts, and store validated URLs plus config values in a central store.
+2. **Texture prep:** load images into Three.js textures, set `flipY` consistently, and flag depth texture as linear; guard rendering until both textures report `image` readiness.
+3. **Geometry creation:** on first render, generate the 280 × 280 grid; compute UVs with pixel-center sampling, fill random noise seeds, and optionally generate sphere positions for morphing.
+4. **Shader material:** define `ShaderMaterial` with attributes/uniforms noted below; disable `depthWrite`, pick blending (`AdditiveBlending` or `NormalBlending`), and set `transparent: true`.
+5. **Animation loop:** in `useFrame`, increment `uTime`, lerp camera target rotation based on pointer velocity for damping, and update uniforms like `uMorph` during entry animation.
+6. **Discard strategy:** send a varying flag from the vertex shader when depth/density fall below thresholds; perform `discard` in the fragment shader to remove background.
+7. **Depth-of-field sizing:** compute `gl_PointSize` using `uPointScale * (1.0 / -mvPosition.z)` and modulate by distance-to-focus to create bokeh; mirror the focus logic in alpha for softer edges.
+8. **Curl noise:** apply 3D curl noise to positions in the vertex shader using `uTime` and per-particle random phases; keep strength moderate to maintain facial cohesion.
+
+## Shader Pseudocode Highlights
+**Vertex shader**
+```
+vec3 color = texture(uColorTex, aUv).rgb;
+float density = dot(color, vec3(0.299, 0.587, 0.114));
+float depth = texture(uDepthTex, aUv).r; // linear space
+bool discardFlag = depth < depthCut || density < densityCut;
+
+vec3 facePos = vec3(aUv * 2.0 - 1.0, depth * uDepthScale);
+facePos.xy *= vec2(1.0, -1.0); // optional flip
+vec3 noisy = facePos + curlNoise(aUv * freq + aRandom.xyz + uTime * speed) * curlStrength;
+vec3 morphed = mix(aSphere, noisy, uMorph);
+
+vec4 mvPos = modelViewMatrix * vec4(morphed, 1.0);
+float focusDelta = abs(depth - uFocus);
+gl_PointSize = (uPointScale / -mvPos.z) * mix(1.0, 1.0 + focusDelta * uAperture, 1.0);
+vAlpha = computeAlpha(focusDelta, density);
+vColor = color;
+vDiscard = discardFlag ? 1.0 : 0.0;
+gl_Position = projectionMatrix * mvPos;
+```
+
+**Fragment shader**
+```
+if (vDiscard > 0.5) discard;
+vec2 c = gl_PointCoord - 0.5;
+if (dot(c, c) > 0.25) discard; // circular mask
+float sprite = texture(uSpriteTex, gl_PointCoord).r; // optional
+float alpha = vAlpha * sprite;
+fragColor = vec4(vColor, alpha);
+```
+
+## Config & Interaction Details
+- **Rotation/damping:** track pointer deltas, integrate into a target Euler, and lerp current rotation each frame for smooth follow.
+- **Parameter UI:** sliders for depth scale, focus, aperture, point scale, curl strength, morph; toggles for depth inversion, sprite usage, additive vs normal blending; numeric inputs for `depthCut`/`densityCut`.
+- **Loading/errors:** display progress while textures load; show validation errors for mismatched sizes or failed decoding; block rendering until validation passes.
+- **Responsiveness:** resize canvas on container changes; recompute `uPointScale` if camera FOV or viewport size changes.
+
+## Chinese Quick Guide（中文速览）
+- 固定 280×280 粒子网格，`aUv` 采样彩色与深度，`aRandom` 提供噪声相位，`aSphere` 用于球面到人脸的过渡动画。
+- 顶点 shader：采样 color/depth → 计算密度/抠除背景 → curl noise 微动 → 深度拉伸 + 景深点大小 → `uMorph` 插值。
+- 片段 shader：用 varying 标记 discard，`gl_PointCoord` 裁圆，按 sprite/景深混合透明度，关闭 `depthWrite` 并选合适 blending。
+- UI：上传彩色/深度图（校验尺寸、可反转深度），滑块调 depthScale/focus/aperture/pointScale/curlStrength/morph，开关 depthCut/densityCut 与 sprite。
+- 性能：属性只上传一次，动画全在 shader；深度纹理保持线性色彩空间，统一处理 `flipY`；点大小按视距衰减防止爆炸。
+
 ## Data Flow to the GPU
 - **Geometry layout:** 280 × 280 grid (or equivalent) to yield 78,400 vertices.
 - **Attributes (per particle):**
