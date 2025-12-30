@@ -4,14 +4,14 @@ const Slider = ({ label, min, max, step, value, onChange, description }) => (
   <label className="field">
     <div className="field-heading">
       <span>{label}</span>
-      <span className="muted">{value.toFixed(2)}</span>
+      <span className="muted">{typeof value === 'number' ? value.toFixed(2) : '—'}</span>
     </div>
     <input
       type="range"
       min={min}
       max={max}
       step={step}
-      value={value}
+      value={typeof value === 'number' ? value : min ?? 0}
       onChange={(e) => onChange(parseFloat(e.target.value))}
     />
     {description && <p className="muted">{description}</p>}

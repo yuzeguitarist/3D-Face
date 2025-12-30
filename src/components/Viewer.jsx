@@ -111,7 +111,7 @@ function Viewer({ colorUrl, depthUrl, config }) {
   return (
     <Canvas
       dpr={[1, 2]}
-      frameloop="demand"
+      frameloop="always"
       onCreated={({ gl }) => {
         gl.toneMapping = THREE.ACESFilmicToneMapping;
         gl.outputColorSpace = THREE.SRGBColorSpace;

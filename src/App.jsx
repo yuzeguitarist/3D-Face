@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import UploadPanel from './components/UploadPanel';
 import ControlsPanel from './components/ControlsPanel';
 import Viewer from './components/Viewer';
@@ -39,9 +39,16 @@ function App() {
     const readImage = (file) =>
       new Promise((resolve, reject) => {
         const img = new Image();
-        img.onload = () => resolve({ width: img.width, height: img.height });
-        img.onerror = () => reject(new Error('Failed to decode image.'));
-        img.src = URL.createObjectURL(file);
+        const url = URL.createObjectURL(file);
+        img.onload = () => {
+          URL.revokeObjectURL(url);
+          resolve({ width: img.width, height: img.height });
+        };
+        img.onerror = () => {
+          URL.revokeObjectURL(url);
+          reject(new Error('Failed to decode image.'));
+        };
+        img.src = url;
       });
 
     const [colorInfo, depthInfo] = await Promise.all([
@@ -69,6 +76,8 @@ function App() {
     setLoading(true);
     try {
       await validateImagePair(colorFile, depthFile);
+      if (colorUrl) URL.revokeObjectURL(colorUrl);
+      if (depthUrl) URL.revokeObjectURL(depthUrl);
       const colorObjectUrl = URL.createObjectURL(colorFile);
       const depthObjectUrl = URL.createObjectURL(depthFile);
       setColorUrl(colorObjectUrl);
@@ -79,6 +88,14 @@ function App() {
       setLoading(false);
     }
   };
+
+  useEffect(
+    () => () => {
+      if (colorUrl) URL.revokeObjectURL(colorUrl);
+      if (depthUrl) URL.revokeObjectURL(depthUrl);
+    },
+    [colorUrl, depthUrl]
+  );
 
   const loaded = useMemo(() => !!(colorUrl && depthUrl), [colorUrl, depthUrl]);
 
