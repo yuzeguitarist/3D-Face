@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 
 const Slider = ({ label, min, max, step, value, onChange, description }) => (
   <label className="field">
@@ -28,13 +28,28 @@ const Toggle = ({ label, checked, onChange, description }) => (
   </label>
 );
 
-function ControlsPanel({ config, onChange }) {
+function ControlsPanel({ config, onChange, presets, onPresetApply, onReset }) {
+  const presetNames = useMemo(() => presets.map((p) => p.name), [presets]);
+  const [selectedPreset, setSelectedPreset] = useState(presetNames[0] ?? '');
+
   return (
     <div className="card">
       <header>
         <div>
           <p className="eyebrow">Parameters</p>
           <h3>Shader controls</h3>
+        </div>
+        <div className="header-actions">
+          <select value={selectedPreset} onChange={(e) => setSelectedPreset(e.target.value)}>
+            {presetNames.map((name) => (
+              <option value={name} key={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+          <button className="ghost" type="button" onClick={() => onPresetApply(selectedPreset)}>
+            Apply preset
+          </button>
         </div>
       </header>
       <div className="grid">
@@ -146,6 +161,23 @@ function ControlsPanel({ config, onChange }) {
           onChange={(v) => onChange('additive', v)}
           description="Brighter, glowier particles. Disable for more realistic color."
         />
+        <Toggle
+          label="Depth testing"
+          checked={config.depthTest}
+          onChange={(v) => onChange('depthTest', v)}
+          description="Enable when rendering over other 3D content."
+        />
+        <Toggle
+          label="Depth write"
+          checked={config.depthWrite}
+          onChange={(v) => onChange('depthWrite', v)}
+          description="Off by default to avoid popping. Turn on for strict layering."
+        />
+      </div>
+      <div className="actions">
+        <button className="ghost" type="button" onClick={onReset}>
+          Reset parameters
+        </button>
       </div>
     </div>
   );

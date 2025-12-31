@@ -207,3 +207,12 @@ button.ghost {
   display: flex;
   gap: 8px;
 }
+
+select {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #e5e7eb;
+  border-radius: 10px;
+  padding: 9px 10px;
+  font-weight: 600;
+}
