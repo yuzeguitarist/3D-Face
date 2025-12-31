@@ -39,6 +39,10 @@ export function createParticleGeometry() {
       sphere[i * 3 + 1] = s.y;
       sphere[i * 3 + 2] = s.z;
 
+      positions[i * 3] = s.x;
+      positions[i * 3 + 1] = s.y;
+      positions[i * 3 + 2] = s.z;
+
       i += 1;
     }
   }
@@ -48,6 +52,11 @@ export function createParticleGeometry() {
   geometry.setAttribute('aUv', new THREE.Float32BufferAttribute(uvs, 2));
   geometry.setAttribute('aRandom', new THREE.Float32BufferAttribute(randoms, 4));
   geometry.setAttribute('aSphere', new THREE.Float32BufferAttribute(sphere, 3));
+
+  geometry.getAttribute('position').setUsage(THREE.StaticDrawUsage);
+  geometry.getAttribute('aUv').setUsage(THREE.StaticDrawUsage);
+  geometry.getAttribute('aRandom').setUsage(THREE.StaticDrawUsage);
+  geometry.getAttribute('aSphere').setUsage(THREE.StaticDrawUsage);
   geometry.computeBoundingSphere();
 
   return geometry;

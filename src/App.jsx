@@ -17,7 +17,63 @@ const defaultConfig = {
   depthReverse: false,
   useSprite: true,
   additive: false,
+  depthWrite: false,
+  depthTest: true,
 };
+
+const presets = [
+  {
+    name: 'Crisp portrait',
+    values: {
+      depthCut: 0.24,
+      densityCut: 0.1,
+      depthScale: 2.4,
+      focus: 0.48,
+      aperture: 0.12,
+      pointScale: 190,
+      curlStrength: 0.12,
+      curlFrequency: 1.6,
+      curlSpeed: 0.32,
+      morph: 1,
+      useSprite: true,
+      additive: false,
+    },
+  },
+  {
+    name: 'Dreamy bokeh',
+    values: {
+      depthCut: 0.22,
+      densityCut: 0.06,
+      depthScale: 2.0,
+      focus: 0.44,
+      aperture: 0.34,
+      pointScale: 230,
+      curlStrength: 0.2,
+      curlFrequency: 1.2,
+      curlSpeed: 0.5,
+      morph: 0.95,
+      useSprite: true,
+      additive: true,
+    },
+  },
+  {
+    name: 'Sphere reveal',
+    values: {
+      depthCut: 0.18,
+      densityCut: 0.04,
+      depthScale: 1.4,
+      focus: 0.55,
+      aperture: 0.08,
+      pointScale: 210,
+      curlStrength: 0.32,
+      curlFrequency: 2.2,
+      curlSpeed: 0.7,
+      morph: 0.2,
+      useSprite: false,
+      additive: false,
+    },
+  },
+];
 
 function App() {
   const [colorUrl, setColorUrl] = useState(null);
@@ -27,7 +83,20 @@ function App() {
   const [config, setConfig] = useState(defaultConfig);
   const [imageSize, setImageSize] = useState(null);
 
-  const handleReset = () => setConfig(defaultConfig);
+  const handleReset = () => {
+    setConfig(defaultConfig);
+    setError('');
+  };
+
+  const handlePresetApply = (presetName) => {
+    const preset = presets.find((p) => p.name === presetName);
+    if (preset) {
+      setConfig((prev) => ({
+        ...prev,
+        ...preset.values,
+      }));
+    }
+  };
 
   const setConfigValue = (key, value) =>
     setConfig((prev) => ({
@@ -120,7 +189,13 @@ function App() {
       <main className="layout">
         <section className="panel">
           <UploadPanel onUpload={handleUpload} loading={loading} imageSize={imageSize} />
-          <ControlsPanel config={config} onChange={setConfigValue} />
+          <ControlsPanel
+            config={config}
+            onChange={setConfigValue}
+            presets={presets}
+            onPresetApply={handlePresetApply}
+            onReset={handleReset}
+          />
           {error && <p className="error">{error}</p>}
         </section>
 

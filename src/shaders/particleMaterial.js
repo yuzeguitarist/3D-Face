@@ -24,6 +24,10 @@ varying vec3 vColor;
 varying float vDiscard;
 varying float vAlpha;
 
+vec2 remapUv(vec2 uv) {
+  return uv * 2.0 - 1.0;
+}
+
 float hash(vec3 p) {
   return fract(sin(dot(p, vec3(27.16898, 38.90563, 17.96873))) * 43758.5453);
 }
@@ -43,13 +47,13 @@ vec3 curlNoise(vec3 p) {
 void main() {
   vec3 color = texture2D(uColorTex, aUv).rgb;
   float density = dot(color, vec3(0.299, 0.587, 0.114));
-  float depth = texture2D(uDepthTex, aUv).r;
+  float depth = clamp(texture2D(uDepthTex, aUv).r, 0.0, 1.0);
   depth = mix(depth, 1.0 - depth, step(0.5, uDepthReverse));
 
   vColor = color;
   vDiscard = depth < uDepthCut || density < uDensityCut ? 1.0 : 0.0;
 
-  vec3 facePos = vec3(aUv * 2.0 - 1.0, depth * uDepthScale);
+  vec3 facePos = vec3(remapUv(aUv), depth * uDepthScale);
   facePos.y *= -1.0;
 
   vec3 noisePos = vec3(aUv, depth) * uCurlFrequency + aRandom.xyz * 2.5 + uTime * uCurlSpeed;
@@ -80,10 +84,12 @@ varying float vAlpha;
 void main() {
   if (vDiscard > 0.5) discard;
   vec2 c = gl_PointCoord - 0.5;
-  if (dot(c, c) > 0.25) discard;
+  float radius2 = dot(c, c);
+  if (radius2 > 0.25) discard;
 
   float sprite = mix(1.0, texture2D(uSpriteTex, gl_PointCoord).r, step(0.5, uUseSprite));
-  float alpha = vAlpha * sprite;
+  float softCircle = smoothstep(0.18, 0.25, radius2);
+  float alpha = vAlpha * sprite * softCircle;
   if (alpha < 0.01) discard;
 
   gl_FragColor = vec4(vColor, alpha);

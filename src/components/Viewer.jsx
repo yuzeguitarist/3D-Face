@@ -27,6 +27,9 @@ function ParticleCloud({ colorUrl, depthUrl, config }) {
     const tex = new THREE.DataTexture(data, size, size);
     tex.needsUpdate = true;
     tex.colorSpace = THREE.LinearSRGBColorSpace;
+    tex.generateMipmaps = false;
+    tex.minFilter = THREE.LinearFilter;
+    tex.magFilter = THREE.LinearFilter;
     return tex;
   }, []);
 
@@ -37,6 +40,9 @@ function ParticleCloud({ colorUrl, depthUrl, config }) {
     if (colorTexture) {
       colorTexture.colorSpace = THREE.SRGBColorSpace;
       colorTexture.flipY = false;
+      colorTexture.minFilter = THREE.LinearFilter;
+      colorTexture.magFilter = THREE.LinearFilter;
+      colorTexture.generateMipmaps = false;
       colorTexture.needsUpdate = true;
     }
   }, [colorTexture]);
@@ -45,6 +51,9 @@ function ParticleCloud({ colorUrl, depthUrl, config }) {
     if (depthTexture) {
       depthTexture.colorSpace = THREE.LinearSRGBColorSpace;
       depthTexture.flipY = false;
+      depthTexture.minFilter = THREE.LinearFilter;
+      depthTexture.magFilter = THREE.LinearFilter;
+      depthTexture.generateMipmaps = false;
       depthTexture.needsUpdate = true;
     }
   }, [depthTexture]);
@@ -67,12 +76,23 @@ function ParticleCloud({ colorUrl, depthUrl, config }) {
     uniforms.uUseSprite.value = config.useSprite ? 1.0 : 0.0;
   });
 
+  useEffect(() => {
+    if (!materialRef.current) return;
+    materialRef.current.blending = config.additive
+      ? THREE.AdditiveBlending
+      : THREE.NormalBlending;
+    materialRef.current.depthWrite = config.depthWrite;
+    materialRef.current.depthTest = config.depthTest;
+    materialRef.current.needsUpdate = true;
+  }, [config.additive, config.depthTest, config.depthWrite]);
+
   return (
     <points geometry={geometry} frustumCulled={false}>
       <shaderMaterial
         ref={materialRef}
         transparent
-        depthWrite={false}
+        depthWrite={config.depthWrite}
+        depthTest={config.depthTest}
         blending={config.additive ? THREE.AdditiveBlending : THREE.NormalBlending}
         vertexShader={vertexShader}
         fragmentShader={fragmentShader}
@@ -123,7 +143,14 @@ function Viewer({ colorUrl, depthUrl, config }) {
       <directionalLight position={[2, 2, 3]} intensity={0.8} />
       <PerspectiveCamera makeDefault position={[0, 0, 3.2]} fov={50} />
       <SceneHost colorUrl={colorUrl} depthUrl={depthUrl} config={config} />
-      <OrbitControls enableDamping dampingFactor={0.08} rotateSpeed={0.45} enablePan={false} />
+      <OrbitControls
+        enableDamping
+        dampingFactor={0.12}
+        rotateSpeed={0.5}
+        zoomSpeed={0.9}
+        maxPolarAngle={Math.PI * 0.9}
+        enablePan={false}
+      />
     </Canvas>
   );
 }
