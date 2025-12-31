@@ -88,7 +88,7 @@ void main() {
   if (radius2 > 0.25) discard;
 
   float sprite = mix(1.0, texture2D(uSpriteTex, gl_PointCoord).r, step(0.5, uUseSprite));
-  float softCircle = smoothstep(0.25, 0.18, radius2);
+  float softCircle = smoothstep(0.18, 0.25, radius2);
   float alpha = vAlpha * sprite * softCircle;
   if (alpha < 0.01) discard;
 
